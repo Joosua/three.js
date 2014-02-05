@@ -29,15 +29,12 @@ THREE.Animation = function ( root, name, interpolationType ) {
 
 };
 
-THREE.Animation.prototype.play = function ( startTime ) {
-
 THREE.Animation.prototype.play = function ( startTimeMS, weight, fadeInTime ) {
 
 	if ( this.isPlaying === false ) {
 
 		this.isPlaying = true;
 		this.isFadingOut = false;
-		this.loop = loop !== undefined ? loop : true;
 		this.weight = weight !== undefined ? weight: 1;
 		this.fadeInTime = fadeInTime !== undefined ? fadeInTime: 0;
 		this.fadeTimeElapsed = 0;
@@ -107,7 +104,6 @@ THREE.Animation.prototype.reset = function () {
 			object.animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
 
 		}
-	var fadedWeight;
 
 		var prevKey = object.animationCache.prevKey;
 		var nextKey = object.animationCache.nextKey;
@@ -115,36 +111,10 @@ THREE.Animation.prototype.reset = function () {
 		prevKey.pos = this.data.hierarchy[ h ].keys[ 0 ];
 		prevKey.rot = this.data.hierarchy[ h ].keys[ 0 ];
 		prevKey.scl = this.data.hierarchy[ h ].keys[ 0 ];
-	this.fadeTimeElapsed += deltaTimeMS * this.timeScale;
 
 		nextKey.pos = this.getNextKeyWith( "pos", h, 1 );
 		nextKey.rot = this.getNextKeyWith( "rot", h, 1 );
 		nextKey.scl = this.getNextKeyWith( "scl", h, 1 );
-	// Scale the weight based on fade in/out
-	if (this.isFadingOut) {
-
-			fadedWeight = this.weight * Math.max( 1 - this.fadeTimeElapsed / this.fadeOutTime, 0 );
-			if ( fadedWeight === 0 ) {
-
-				this.stop(0);
-				return;
-
-			}
-
-	} else {
-
-		if ( this.fadeInTime !== 0 )
-			fadedWeight = this.weight * Math.min( this.fadeTimeElapsed / this.fadeInTime, 1 );
-		else
-			fadedWeight = this.weight;
-
-		if ( fadedWeight === 0 )
-			return;
-	}
-
-	unloopedCurrentTime = this.currentTime;
-	currentTime = this.currentTime = this.currentTime % this.data.length;
-	frame = parseInt( Math.min( currentTime * this.data.fps, this.data.length * this.data.fps ), 10 );
 
 	}
 
@@ -157,13 +127,37 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 	this.currentTime += delta * this.timeScale;
 
-	//
-
 	var vector;
 	var types = [ "pos", "rot", "scl" ];
 
 	var duration = this.data.length;
 	var currentTime = this.currentTime;
+	
+	var fadedWeight = 1;
+	this.fadeTimeElapsed += this.currentTime;
+
+	// Scale the weight based on fade in/out
+	if (this.isFadingOut) {
+
+		fadedWeight = this.weight * Math.max( 1 - this.fadeTimeElapsed / this.fadeOutTime, 0 );
+		if ( fadedWeight === 0 ) {
+
+			this.reset();
+			this.stop(0);
+			return;
+
+		}
+
+	} else {
+
+		if ( this.fadeInTime !== 0 )
+			fadedWeight = this.weight * Math.min( this.fadeTimeElapsed / this.fadeInTime, 1 );
+		else
+			fadedWeight = this.weight;
+
+		if ( fadedWeight === 0 )
+			return;
+	}
 
 	if ( this.loop === true ) {
 
@@ -213,8 +207,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 			var prevXYZ = prevKey[ type ];
 			var nextXYZ = nextKey[ type ];
 
-			if ( scale < 0 ) scale = 0;
-			if ( scale > 1 ) scale = 1;
+			scale = Math.min(Math.max(scale, 0), 1);
 
 			// interpolate
 
