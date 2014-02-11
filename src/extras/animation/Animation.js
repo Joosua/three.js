@@ -138,26 +138,37 @@ THREE.Animation.prototype.update = function ( delta ) {
 	this.fadeTimeElapsed += delta * this.timeScale;
 
 	// Scale the weight based on fade in/out
-	if (this.isFadingOut) {
+	
+	if (this.fadeInTime > 0 || this.fadeOutTime > 0) {
+		
+        if (this.isFadingOut) {
+            
+            fadedWeight = Math.max( 1 - this.fadeTimeElapsed / this.fadeOutTime, 0 );
+            
+            if (fadedWeight === 0)
+            {
+                this.fadeOutTime = 0;
+                this.stop(0);
+            }
 
-		fadedWeight = this.weight * Math.max( 1 - this.fadeTimeElapsed / this.fadeOutTime, 0 );
-		if ( fadedWeight === 0 ) {
-
-			this.stop(0);
-			return;
-
-		}
-
-	} else {
-
-		if ( this.fadeInTime !== 0 )
-			fadedWeight = this.weight * Math.min( this.fadeTimeElapsed / this.fadeInTime, 1 );
-		else
-			fadedWeight = this.weight;
-
-		if ( fadedWeight === 0 )
-			return;
-	}
+        }
+        else {
+		
+            fadedWeight = Math.min( this.fadeTimeElapsed / this.fadeInTime, 1 );
+			
+            if (fadedWeight === 1)
+                this.fadeInTime = 0;
+				
+        }
+        
+        fadedWeight = fadedWeight === 0 ? 0 : this.weight * fadedWeight;
+        
+		// To make sure that we don't divide by zero while interpolating
+		
+        if ( fadedWeight === 0 )
+            return;
+			
+    }
 
 	if ( this.loop === true && this.currentTime > duration ) {
 
