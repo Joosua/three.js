@@ -14761,6 +14761,10 @@ THREE.Bone = function( belongsToSkin ) {
 	this.skin = belongsToSkin;
 	this.skinMatrix = new THREE.Matrix4();
 
+	this.accumulatedRotWeight = 0;
+	this.accumulatedPosWeight = 0;
+	this.accumulatedSclWeight = 0;
+
 };
 
 THREE.Bone.prototype = Object.create( THREE.Object3D.prototype );
@@ -14791,6 +14795,11 @@ THREE.Bone.prototype.update = function ( parentSkinMatrix, forceUpdate ) {
 
 		this.matrixWorldNeedsUpdate = false;
 		forceUpdate = true;
+
+		// Reset weights for the next frame
+		this.accumulatedRotWeight = 0;
+		this.accumulatedPosWeight = 0;
+		this.accumulatedSclWeight = 0;
 
 	}
 
@@ -30710,22 +30719,30 @@ THREE.Animation = function ( root, name ) {
 
 	this.isPlaying = false;
 	this.isPaused = true;
+	this.isFadingOut = false;
 	this.loop = true;
+	this.weight = 1;
+	this.fadeInTime = 0;
+	this.fadeOutTime = 0;
+	this.fadeTimeElapsed = 0;
 
 	this.interpolationType = THREE.AnimationHandler.LINEAR;
 
 	this.points = [];
+	this.animationCaches = {};
 	this.target = new THREE.Vector3();
 
 };
 
-THREE.Animation.prototype.play = function ( startTime ) {
-
-	this.currentTime = startTime !== undefined ? startTime : 0;
+THREE.Animation.prototype.play = function ( startTimeMS, weight, fadeInTime ) {
 
 	if ( this.isPlaying === false ) {
 
 		this.isPlaying = true;
+		this.isFadingOut = false;
+		this.weight = weight !== undefined ? weight: 1;
+		this.fadeInTime = fadeInTime !== undefined ? fadeInTime: 0;
+		this.fadeTimeElapsed = 0;
 
 		this.reset();
 		this.update( 0 );
@@ -30756,11 +30773,23 @@ THREE.Animation.prototype.pause = function() {
 };
 
 
-THREE.Animation.prototype.stop = function() {
+THREE.Animation.prototype.stop = function(fadeOutTime) {
 
-	this.isPlaying = false;
-	this.isPaused  = false;
-	THREE.AnimationHandler.removeFromUpdate( this );
+	fadeOutTime = fadeOutTime !== undefined ? fadeOutTime: 0;
+
+	if ( fadeOutTime === 0 ) {
+
+		this.isPlaying = false;
+		this.isPaused  = false;
+		THREE.AnimationHandler.removeFromUpdate( this );
+
+	} else {
+
+		this.isFadingOut = true;
+		this.fadeTimeElapsed = 0;
+		this.fadeOutTime = fadeOutTime;
+
+	}
 
 };
 
@@ -30772,17 +30801,17 @@ THREE.Animation.prototype.reset = function () {
 
 		object.matrixAutoUpdate = true;
 
-		if ( object.animationCache === undefined ) {
+		if ( this.animationCaches[ h ] === undefined ) {
 
-			object.animationCache = {};
-			object.animationCache.prevKey = { pos: 0, rot: 0, scl: 0 };
-			object.animationCache.nextKey = { pos: 0, rot: 0, scl: 0 };
-			object.animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
+			this.animationCaches[ h ] = {};
+			this.animationCaches[ h ].prevKey = { pos: 0, rot: 0, scl: 0 };
+			this.animationCaches[ h ].nextKey = { pos: 0, rot: 0, scl: 0 };
+			this.animationCaches[ h ].originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
 
 		}
 
-		var prevKey = object.animationCache.prevKey;
-		var nextKey = object.animationCache.nextKey;
+		var prevKey = this.animationCaches[ h ].prevKey;
+		var nextKey = this.animationCaches[ h ].nextKey;
 
 		prevKey.pos = this.data.hierarchy[ h ].keys[ 0 ];
 		prevKey.rot = this.data.hierarchy[ h ].keys[ 0 ];
@@ -30803,12 +30832,36 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 	this.currentTime += delta * this.timeScale;
 
-	//
-
 	var vector;
 	var types = [ "pos", "rot", "scl" ];
 
 	var duration = this.data.length;
+	
+	var fadedWeight = 1;
+	this.fadeTimeElapsed += this.currentTime;
+
+	// Scale the weight based on fade in/out
+	if (this.isFadingOut) {
+
+		fadedWeight = this.weight * Math.max( 1 - this.fadeTimeElapsed / this.fadeOutTime, 0 );
+		if ( fadedWeight === 0 ) {
+
+			this.reset();
+			this.stop(0);
+			return;
+
+		}
+
+	} else {
+
+		if ( this.fadeInTime !== 0 )
+			fadedWeight = this.weight * Math.min( this.fadeTimeElapsed / this.fadeInTime, 1 );
+		else
+			fadedWeight = this.weight;
+
+		if ( fadedWeight === 0 )
+			return;
+	}
 
 	if ( this.loop === true && this.currentTime > duration ) {
 
@@ -30822,7 +30875,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 	for ( var h = 0, hl = this.hierarchy.length; h < hl; h ++ ) {
 
 		var object = this.hierarchy[ h ];
-		var animationCache = object.animationCache;
+		var animationCache = this.animationCaches[ h ];
 
 		// loop through pos/rot/scl
 
@@ -30859,8 +30912,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 			var prevXYZ = prevKey[ type ];
 			var nextXYZ = nextKey[ type ];
 
-			if ( scale < 0 ) scale = 0;
-			if ( scale > 1 ) scale = 1;
+			scale = Math.min(Math.max(scale, 0), 1);
 
 			// interpolate
 
@@ -30870,9 +30922,21 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 				if ( this.interpolationType === THREE.AnimationHandler.LINEAR ) {
 
-					vector.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
-					vector.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale;
-					vector.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale;
+					// get the lerped keyframe
+					var newVector = new THREE.Vector3(
+						prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
+						prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
+						prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
+					);
+
+					// blend this pos animation with others
+					if (object instanceof THREE.Bone) {
+						var proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedPosWeight );
+						vector.lerp( newVector, proportionalWeight );
+						object.accumulatedPosWeight += fadedWeight;
+					} else
+						vector = newVector;
+
 
 				} else if ( this.interpolationType === THREE.AnimationHandler.CATMULLROM ||
 					this.interpolationType === THREE.AnimationHandler.CATMULLROM_FORWARD ) {
@@ -30886,9 +30950,16 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 					var currentPoint = this.interpolateCatmullRom( this.points, scale );
 
-					vector.x = currentPoint[ 0 ];
-					vector.y = currentPoint[ 1 ];
-					vector.z = currentPoint[ 2 ];
+					if ( object instanceof THREE.Bone ) {
+						var proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedPosWeight );
+						object.accumulatedPosWeight += fadedWeight;
+					}
+					else
+						var proportionalWeight = 1;
+
+					vector.x = vector.x + ( currentPoint[ 0 ] - vector.x ) * proportionalWeight;
+					vector.y = vector.y + ( currentPoint[ 1 ] - vector.y ) * proportionalWeight;
+					vector.z = vector.z + ( currentPoint[ 2 ] - vector.z ) * proportionalWeight;
 
 					if ( this.interpolationType === THREE.AnimationHandler.CATMULLROM_FORWARD ) {
 
@@ -30908,15 +30979,47 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 			} else if ( type === "rot" ) {
 
-				THREE.Quaternion.slerp( prevXYZ, nextXYZ, object.quaternion, scale );
+				var newRotation = new THREE.Quaternion();
+				THREE.Quaternion.slerp( prevXYZ, nextXYZ, newRotation, scale );
+
+				if ( !( object instanceof THREE.Bone) ) {
+
+					object.quaternion = newRotation;
+
+				}
+				// Avoid paying the cost of slerp if we don't have to
+				else if ( object.accumulatedRotWeight === 0) {
+
+					object.quaternion = newRotation;
+					object.accumulatedRotWeight = fadedWeight;
+
+				}
+				else {
+
+					var proportionalWeight = fadedWeight / (fadedWeight + object.accumulatedRotWeight);
+					THREE.Quaternion.slerp( object.quaternion, newRotation, object.quaternion, proportionalWeight );
+					object.accumulatedRotWeight += fadedWeight;
+
+				}
 
 			} else if ( type === "scl" ) {
 
 				vector = object.scale;
 
-				vector.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
-				vector.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale;
-				vector.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale;
+				var newScale = new THREE.Vector3(
+					prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
+					prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
+					prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
+				);
+
+				if ( object instanceof THREE.Bone ) {
+
+					var proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedSclWeight);
+					vector.lerp( newScale, proportionalWeight );
+					object.accumulatedSclWeight += fadedWeight;
+
+				} else
+					vector = newScale;
 
 			}
 

@@ -25,6 +25,7 @@ THREE.Animation = function ( root, name ) {
 	this.interpolationType = THREE.AnimationHandler.LINEAR;
 
 	this.points = [];
+	this.animationCaches = {};
 	this.target = new THREE.Vector3();
 
 };
@@ -96,17 +97,17 @@ THREE.Animation.prototype.reset = function () {
 
 		object.matrixAutoUpdate = true;
 
-		if ( object.animationCache === undefined ) {
+		if ( this.animationCaches[ h ] === undefined ) {
 
-			object.animationCache = {};
-			object.animationCache.prevKey = { pos: 0, rot: 0, scl: 0 };
-			object.animationCache.nextKey = { pos: 0, rot: 0, scl: 0 };
-			object.animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
+			this.animationCaches[ h ] = {};
+			this.animationCaches[ h ].prevKey = { pos: 0, rot: 0, scl: 0 };
+			this.animationCaches[ h ].nextKey = { pos: 0, rot: 0, scl: 0 };
+			this.animationCaches[ h ].originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
 
 		}
 
-		var prevKey = object.animationCache.prevKey;
-		var nextKey = object.animationCache.nextKey;
+		var prevKey = this.animationCaches[ h ].prevKey;
+		var nextKey = this.animationCaches[ h ].nextKey;
 
 		prevKey.pos = this.data.hierarchy[ h ].keys[ 0 ];
 		prevKey.rot = this.data.hierarchy[ h ].keys[ 0 ];
@@ -170,7 +171,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 	for ( var h = 0, hl = this.hierarchy.length; h < hl; h ++ ) {
 
 		var object = this.hierarchy[ h ];
-		var animationCache = object.animationCache;
+		var animationCache = this.animationCaches[ h ];
 
 		// loop through pos/rot/scl
 
