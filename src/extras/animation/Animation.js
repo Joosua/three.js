@@ -161,15 +161,15 @@ THREE.Animation.prototype.update = function ( delta ) {
                 this.fadeInTime = 0;
 				
         }
-        
-        fadedWeight = fadedWeight === 0 ? 0 : this.weight * fadedWeight;
-        
-		// To make sure that we don't divide by zero while interpolating
-		
-        if ( fadedWeight === 0 )
-            return;
 			
     }
+	
+	fadedWeight = fadedWeight === 0 ? 0 : this.weight * fadedWeight;
+	
+	// To make sure that we don't divide by zero while interpolating
+	
+	if ( fadedWeight === 0 )
+            return;
 
 	if ( this.loop === true && this.currentTime > duration ) {
 
