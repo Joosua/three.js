@@ -30779,6 +30779,7 @@ THREE.Animation.prototype.stop = function(fadeOutTime) {
 
 	if ( fadeOutTime === 0 ) {
 
+		this.currentTime = 0;
 		this.isPlaying = false;
 		this.isPaused  = false;
 		THREE.AnimationHandler.removeFromUpdate( this );
@@ -30838,7 +30839,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 	var duration = this.data.length;
 	
 	var fadedWeight = 1;
-	this.fadeTimeElapsed += this.currentTime;
+	this.fadeTimeElapsed += delta * this.timeScale;
 
 	// Scale the weight based on fade in/out
 	if (this.isFadingOut) {
@@ -30846,7 +30847,6 @@ THREE.Animation.prototype.update = function ( delta ) {
 		fadedWeight = this.weight * Math.max( 1 - this.fadeTimeElapsed / this.fadeOutTime, 0 );
 		if ( fadedWeight === 0 ) {
 
-			this.reset();
 			this.stop(0);
 			return;
 
@@ -31027,9 +31027,9 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 	}
 
-	if ( this.loop === false && this.currentTime > duration ) {
+	if ( this.loop === false && this.currentTime >= duration ) {
 
-		this.stop();
+		this.stop(0);
 
 	}
 
