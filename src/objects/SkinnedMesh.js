@@ -35,7 +35,7 @@ THREE.SkinnedMesh = function ( geometry, material, useVertexTexture ) {
 			bone.name = gbone.name;
 			bone.position.set( p[0], p[1], p[2] );
 			bone.quaternion.set( q[0], q[1], q[2], q[3] );
-		
+
 			if ( s !== undefined ) {
 
 				bone.scale.set( s[0], s[1], s[2] );
@@ -46,6 +46,12 @@ THREE.SkinnedMesh = function ( geometry, material, useVertexTexture ) {
 
 			}
 
+			bone.originalPosition = new THREE.Vector3();
+			bone.originalQuaternion = new THREE.Quaternion();
+			bone.originalScale = new THREE.Vector3();
+			bone.originalPosition.copy(bone.position);
+			bone.originalQuaternion.copy(bone.quaternion);
+			bone.originalScale.copy(bone.scale);
 		}
 
 		for ( b = 0; b < this.bones.length; b ++ ) {

@@ -100,10 +100,10 @@ THREE.Animation.prototype.reset = function () {
 
 		if ( this.animationCaches[ h ] === undefined ) {
 
-			this.animationCaches[ h ] = {};
-			this.animationCaches[ h ].prevKey = { pos: 0, rot: 0, scl: 0 };
-			this.animationCaches[ h ].nextKey = { pos: 0, rot: 0, scl: 0 };
-			this.animationCaches[ h ].originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
+			var animationCache = this.animationCaches[ h ] = {};
+			animationCache.prevKey = { pos: 0, rot: 0, scl: 0 };
+			animationCache.nextKey = { pos: 0, rot: 0, scl: 0 };
+			animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
 
 		}
 
@@ -130,6 +130,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 	this.currentTime += delta * this.timeScale;
 
 	var vector;
+	var quat;
 	var types = [ "pos", "rot", "scl" ];
 
 	var duration = this.data.length;
@@ -236,13 +237,16 @@ THREE.Animation.prototype.update = function ( delta ) {
 						prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
 					);
 
-					// blend this pos animation with others
+					// If first animation to blend to a bone, reset position to bind pose
 					if (object instanceof THREE.Bone) {
-						var proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedPosWeight );
-						vector.lerp( newVector, proportionalWeight );
+
+						if (object.accumulatedPosWeight === 0)
+							vector.copy(object.originalPosition);
+						vector.lerp(newVector, fadedWeight);
 						object.accumulatedPosWeight += fadedWeight;
+
 					} else
-						vector = newVector;
+						vector.copy(newVector);
 
 
 				} else if ( this.interpolationType === THREE.AnimationHandler.CATMULLROM ||
@@ -257,9 +261,14 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 					var currentPoint = this.interpolateCatmullRom( this.points, scale );
 
+					// If first animation to blend to a bone, reset position to bind pose
 					if ( object instanceof THREE.Bone ) {
-						var proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedPosWeight );
-						object.accumulatedPosWeight += fadedWeight;
+
+						var proportionalWeight = fadedWeight;
+						if (object.accumulatedPosWeight === 0)
+							vector.copy(object.originalPosition);
+						object.accumulatedPosWeight += fadedWeight
+
 					}
 					else
 						var proportionalWeight = 1;
@@ -286,28 +295,22 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 			} else if ( type === "rot" ) {
 
+				quat = object.quaternion;
+
 				var newRotation = new THREE.Quaternion();
 				THREE.Quaternion.slerp( prevXYZ, nextXYZ, newRotation, scale );
 
-				if ( !( object instanceof THREE.Bone) ) {
+				// If first animation to blend to a bone, reset rotation to bind pose
+				if (object instanceof THREE.Bone) {
 
-					object.quaternion = newRotation;
-
-				}
-				// Avoid paying the cost of slerp if we don't have to
-				else if ( object.accumulatedRotWeight === 0) {
-
-					object.quaternion = newRotation;
-					object.accumulatedRotWeight = fadedWeight;
-
-				}
-				else {
-
-					var proportionalWeight = fadedWeight / (fadedWeight + object.accumulatedRotWeight);
-					THREE.Quaternion.slerp( object.quaternion, newRotation, object.quaternion, proportionalWeight );
+					if (object.accumulatedRotWeight === 0)
+						quat.copy(object.originalQuaternion);
+					quat.slerp(newRotation, fadedWeight);
 					object.accumulatedRotWeight += fadedWeight;
 
 				}
+				else
+					quat.copy(newRotation);
 
 			} else if ( type === "scl" ) {
 
@@ -319,14 +322,16 @@ THREE.Animation.prototype.update = function ( delta ) {
 					prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
 				);
 
+				// If first animation to blend to a bone, reset scale to bind pose
 				if ( object instanceof THREE.Bone ) {
 
-					var proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedSclWeight);
-					vector.lerp( newScale, proportionalWeight );
+					if (object.accumulatedSclWeight === 0)
+						vector.copy(object.originalScale);
+					vector.lerp(newScale, fadedWeight);
 					object.accumulatedSclWeight += fadedWeight;
 
 				} else
-					vector = newScale;
+					vector.copy(newScale);
 
 			}
 
