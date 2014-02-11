@@ -283,7 +283,7 @@ THREE.Animation.prototype.update = function ( delta ) {
 
 				}
 				// Avoid paying the cost of slerp if we don't have to
-				else if ( object.accumulateRotWeight === 0) {
+				else if ( object.accumulatedRotWeight === 0) {
 
 					object.quaternion = newRotation;
 					object.accumulatedRotWeight = fadedWeight;
