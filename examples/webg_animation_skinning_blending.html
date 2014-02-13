@@ -281,7 +281,7 @@
 				if ( forwardMovement !== 0 ) {
 
 					if ( !walkAnim.isPlaying ) {
-						walkAnim.play( true, 0, 1, 0.3 );
+						walkAnim.play( 0, 1, 0.3 );
 
 						if ( idleAnim.isPlaying )
 							idleAnim.stop( 0.3 );
@@ -291,7 +291,7 @@
 				} else {
 
 					if ( !idleAnim.isPlaying ) {
-						idleAnim.play( true, 0, 1, 0.3 );
+						idleAnim.play( 0, 1, 0.3 );
 
 						if ( walkAnim.isPlaying )
 							walkAnim.stop( 0.3 );
