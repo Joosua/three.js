@@ -58,24 +58,13 @@ THREE.AnimationHandler = (function() {
 
 	that.get = function( name ) {
 
-		if ( typeof name === "string" ) {
+		if ( typeof name === "string" && library[ name ] !== undefined ) {
 
-			if ( library[ name ] ) {
-
-				return library[ name ];
-
-			} else {
-
-				console.log( "THREE.AnimationHandler.get: Couldn't find animation " + name );
-				return null;
-
-			}
-
-		} else {
-
-			// todo: add simple tween library
+			return library[ name ];
 
 		}
+		
+		return null;
 
 	};
 
