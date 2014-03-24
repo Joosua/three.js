@@ -34,7 +34,7 @@ THREE.Bone.prototype.update = function ( parentSkinMatrix, forceUpdate ) {
 
 	if ( forceUpdate || this.matrixWorldNeedsUpdate ) {
 
-		if( parentSkinMatrix ) {
+		if ( parentSkinMatrix ) {
 
 			this.skinMatrix.multiplyMatrices( parentSkinMatrix, this.matrix );
 
@@ -56,9 +56,7 @@ THREE.Bone.prototype.update = function ( parentSkinMatrix, forceUpdate ) {
 
 	// update children
 
-	var child, i, l = this.children.length;
-
-	for ( i = 0; i < l; i ++ ) {
+	for ( var i = 0, l = this.children.length; i < l; i ++ ) {
 
 		this.children[ i ].update( this.skinMatrix, forceUpdate );
 
