@@ -31923,8 +31923,6 @@ THREE.Animation = function ( root, name ) {
 	this.loop = true;
 	
 	this.weight = 1;
-	//this.fadeInTime = 0;
-	//this.fadeOutTime = 0;
 	this.isFadingOut = false;
 	this.fadeTime = 0;
 	this.fadeTimeElapsed = 0;
@@ -31997,7 +31995,6 @@ THREE.Animation.prototype.stop = function( fadeOutTime ) {
 
 		this.isFadingOut = true;
 		this.fadeTimeElapsed = 0;
-		//this.fadeOutTime = fadeOutTime;
 		this.fadeTime = fadeOutTime;
 
 	}
@@ -32099,20 +32096,6 @@ THREE.Animation.prototype.update = (function(){
 	
 	};
 	
-	var fadeWeight = function ( fadeTime, elapsedTime, fadeout ) {
-		
-		if ( fadeTime )
-		{
-			if ( fadeout === true )
-				return Math.max( 1 - elapsedTime / fadeTime, 0 );
-			else
-				return Math.min( elapsedTime / fadeTime, 1 );
-		}
-		else
-			return 1;
-	
-	};
-	
 	return function ( delta ) {
 		if ( this.isPlaying === false ) return;
 	
@@ -32132,37 +32115,34 @@ THREE.Animation.prototype.update = (function(){
 		var duration = this.data.length;
 		
 		var fadedWeight = 1;
-		if (this.fadeTime > 0) {
 		
-			fadedWeight = fadeWeight(this.fadeTime, this.fadeTimeElapsed, this.isFadingOut);
+		// Check if fadein our fadeout is active.
+		if (this.fadeTime > 0) {
+
+			if ( this.isFadingOut === true ) {
 			
-			if ( this.isFadingOut === true && fadedWeight <= 0 ) {
+				fadedWeight = Math.max( 1 - this.fadeTimeElapsed / this.fadeTime, 0 );
+				if ( fadedWeight <= 0 ) { 
 				
-				this.fadeTime = 0;
-				this.stop(0);
-				return;
+					this.fadeTime = 0;
+					this.stop(0);
+					return;
+					
+				}
 			
-			} else if ( this.isFadingOut === false && fadedWeight >= 1 ) {
+			} else {
 				
-				this.fadeTime = 0;
+				fadedWeight = Math.min( this.fadeTimeElapsed / this.fadeTime, 1 );
+				if ( fadedWeight >= 1 )
+					this.fadeTime = 0;
 			
 			}
 			
 		}
 			
 		fadedWeight *= this.weight;
-	
-		/*if ( this.loop === true && this.currentTime > duration ) {
-	
-			this.currentTime %= duration;
-			this.reset();
-	
-		} else if ( this.loop === false && this.currentTime > duration ) {
-	
-			this.stop();
+		if ( fadedWeight === 0 )
 			return;
-	
-		}*/
 		
 		if ( this.loop === true ) {
 
@@ -32199,7 +32179,6 @@ THREE.Animation.prototype.update = (function(){
 		for ( var h = 0, hl = this.hierarchy.length; h < hl; h ++ ) {
 	
 			var object = this.hierarchy[ h ];
-			//var animationCache = object.animationCache;
 			var animationCache = this.animationCaches[ h ];
 	
 			// loop through pos/rot/scl
@@ -32267,6 +32246,9 @@ THREE.Animation.prototype.update = (function(){
 	
 				if ( scale < 0 ) scale = 0;
 				if ( scale > 1 ) scale = 1;
+				
+				if ( object.enableAnimations === false )
+					continue;
 	
 				// interpolate
 	
@@ -32276,9 +32258,6 @@ THREE.Animation.prototype.update = (function(){
 	
 					if ( this.interpolationType === THREE.AnimationHandler.LINEAR ) {
 	
-						/*vector.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
-						vector.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale;
-						vector.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale;*/
 						var newVector = new THREE.Vector3(
 							prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
 							prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
@@ -32356,7 +32335,6 @@ THREE.Animation.prototype.update = (function(){
 	
 				} else if ( type === "rot" ) {
 	
-					//THREE.Quaternion.slerp( prevXYZ, nextXYZ, object.quaternion, scale );
 					quat = object.quaternion;
 
 					var newRotation = new THREE.Quaternion();
