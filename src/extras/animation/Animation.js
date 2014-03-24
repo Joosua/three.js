@@ -281,6 +281,9 @@ THREE.Animation.prototype.update = function ( delta ) {
 			var nextXYZ = nextKey[ type ];
 
 			scale = Math.min(Math.max(scale, 0), 1);
+			
+			if ( !object.enableAnimations )
+				continue;
 
 			// interpolate
 

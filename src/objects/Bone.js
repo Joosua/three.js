@@ -13,6 +13,8 @@ THREE.Bone = function( belongsToSkin ) {
 	this.accumulatedRotWeight = 0;
 	this.accumulatedPosWeight = 0;
 	this.accumulatedSclWeight = 0;
+	
+	this.enableAnimations = true;
 
 };
 
