@@ -1157,7 +1157,6 @@ THREE.Vector2.prototype = {
 
 	},
 
-
 	setComponent: function ( index, value ) {
 
 		switch ( index ) {
@@ -4060,15 +4059,14 @@ THREE.Box3.prototype = {
 
 THREE.Matrix3 = function ( n11, n12, n13, n21, n22, n23, n31, n32, n33 ) {
 
-	this.elements = new Float32Array(9);
+	this.elements = new Float32Array( 9 );
 
-	this.set(
+	var te = this.elements;
 
-		( n11 !== undefined ) ? n11 : 1, n12 || 0, n13 || 0,
-		n21 || 0, ( n22 !== undefined ) ? n22 : 1, n23 || 0,
-		n31 || 0, n32 || 0, ( n33 !== undefined ) ? n33 : 1
+	te[0] = ( n11 !== undefined ) ? n11 : 1; te[3] = n12 || 0; te[6] = n13 || 0;
+	te[1] = n21 || 0; te[4] = ( n22 !== undefined ) ? n22 : 1; te[7] = n23 || 0;
+	te[2] = n31 || 0; te[5] = n32 || 0; te[8] = ( n33 !== undefined ) ? n33 : 1;
 
-	);
 };
 
 THREE.Matrix3.prototype = {
@@ -4238,6 +4236,26 @@ THREE.Matrix3.prototype = {
 		tmp = m[5]; m[5] = m[7]; m[7] = tmp;
 
 		return this;
+
+	},
+
+	flattenToArrayOffset: function( array, offset ) {
+
+		var te = this.elements;
+
+		array[ offset     ] = te[0];
+		array[ offset + 1 ] = te[1];
+		array[ offset + 2 ] = te[2];
+		
+		array[ offset + 3 ] = te[3];
+		array[ offset + 4 ] = te[4];
+		array[ offset + 5 ] = te[5];
+		
+		array[ offset + 6 ] = te[6];
+		array[ offset + 7 ] = te[7];
+		array[ offset + 8 ]  = te[8];
+
+		return array;
 
 	},
 
@@ -4849,42 +4867,31 @@ THREE.Matrix4.prototype = {
 
 	},
 
-	flattenToArray: function ( flat ) {
+	flattenToArrayOffset: function( array, offset ) {
 
 		var te = this.elements;
-		flat[ 0 ] = te[0]; flat[ 1 ] = te[1]; flat[ 2 ] = te[2]; flat[ 3 ] = te[3];
-		flat[ 4 ] = te[4]; flat[ 5 ] = te[5]; flat[ 6 ] = te[6]; flat[ 7 ] = te[7];
-		flat[ 8 ] = te[8]; flat[ 9 ] = te[9]; flat[ 10 ] = te[10]; flat[ 11 ] = te[11];
-		flat[ 12 ] = te[12]; flat[ 13 ] = te[13]; flat[ 14 ] = te[14]; flat[ 15 ] = te[15];
 
-		return flat;
+		array[ offset     ] = te[0];
+		array[ offset + 1 ] = te[1];
+		array[ offset + 2 ] = te[2];
+		array[ offset + 3 ] = te[3];
 
-	},
+		array[ offset + 4 ] = te[4];
+		array[ offset + 5 ] = te[5];
+		array[ offset + 6 ] = te[6];
+		array[ offset + 7 ] = te[7];
 
-	flattenToArrayOffset: function( flat, offset ) {
+		array[ offset + 8 ]  = te[8];
+		array[ offset + 9 ]  = te[9];
+		array[ offset + 10 ] = te[10];
+		array[ offset + 11 ] = te[11];
 
-		var te = this.elements;
-		flat[ offset ] = te[0];
-		flat[ offset + 1 ] = te[1];
-		flat[ offset + 2 ] = te[2];
-		flat[ offset + 3 ] = te[3];
+		array[ offset + 12 ] = te[12];
+		array[ offset + 13 ] = te[13];
+		array[ offset + 14 ] = te[14];
+		array[ offset + 15 ] = te[15];
 
-		flat[ offset + 4 ] = te[4];
-		flat[ offset + 5 ] = te[5];
-		flat[ offset + 6 ] = te[6];
-		flat[ offset + 7 ] = te[7];
-
-		flat[ offset + 8 ]  = te[8];
-		flat[ offset + 9 ]  = te[9];
-		flat[ offset + 10 ] = te[10];
-		flat[ offset + 11 ] = te[11];
-
-		flat[ offset + 12 ] = te[12];
-		flat[ offset + 13 ] = te[13];
-		flat[ offset + 14 ] = te[14];
-		flat[ offset + 15 ] = te[15];
-
-		return flat;
+		return array;
 
 	},
 
@@ -6854,17 +6861,6 @@ THREE.Vertex = function ( v ) {
 };
 
 /**
- * @author mrdoob / http://mrdoob.com/
- */
-
-THREE.UV = function ( u, v ) {
-
-	console.warn( 'THREE.UV has been DEPRECATED. Use THREE.Vector2 instead.')
-	return new THREE.Vector2( u, v );
-
-};
-
-/**
  * @author alteredq / http://alteredqualia.com/
  */
 
@@ -7521,8 +7517,6 @@ THREE.EventDispatcher.prototype = {
 
 THREE.Object3D = function () {
 
-	var scope = this;
-
 	this.id = THREE.Object3DIdCount ++;
 	this.uuid = THREE.Math.generateUUID();
 
@@ -7534,10 +7528,27 @@ THREE.Object3D = function () {
 	this.up = new THREE.Vector3( 0, 1, 0 );
 
 	this.position = new THREE.Vector3();
-	this.rotation = new THREE.Euler().onChange( function () { scope.quaternion.setFromEuler( scope.rotation, false ); } );
-	this.quaternion = new THREE.Quaternion().onChange( function () { scope.rotation.setFromQuaternion( scope.quaternion, undefined, false );
- } );
-	this.scale = new THREE.Vector3( 1, 1, 1 );
+
+	var scope = this;
+
+	Object.defineProperties( this, {
+		rotation: {
+			enumerable: true,
+			value: new THREE.Euler().onChange( function () {
+				scope.quaternion.setFromEuler( scope.rotation, false );
+			} )
+		},
+		quaternion: {
+			enumerable: true,
+			value: new THREE.Quaternion().onChange( function () {
+				scope.rotation.setFromQuaternion( scope.quaternion, undefined, false );
+			} )
+		},
+		scale: {
+			enumerable: true,
+			value: new THREE.Vector3( 1, 1, 1 )
+		}
+	} );
 
 	this.renderDepth = null;
 
@@ -9311,6 +9322,9 @@ THREE.BufferGeometry.prototype = {
 				}
 
 				box.center( center );
+
+				// hoping to find a boundingSphere with a radius smaller than the
+				// boundingSphere of the boundingBox:  sqrt(3) smaller in the best case
 
 				var maxRadiusSq = 0;
 
@@ -15869,12 +15883,6 @@ THREE.Bone = function( belongsToSkin ) {
 	this.skin = belongsToSkin;
 	this.skinMatrix = new THREE.Matrix4();
 
-	this.accumulatedRotWeight = 0;
-	this.accumulatedPosWeight = 0;
-	this.accumulatedSclWeight = 0;
-	
-	this.enableAnimations = true;
-
 };
 
 THREE.Bone.prototype = Object.create( THREE.Object3D.prototype );
@@ -15905,11 +15913,6 @@ THREE.Bone.prototype.update = function ( parentSkinMatrix, forceUpdate ) {
 
 		this.matrixWorldNeedsUpdate = false;
 		forceUpdate = true;
-
-		// Reset weights for the next frame
-		this.accumulatedRotWeight = 0;
-		this.accumulatedPosWeight = 0;
-		this.accumulatedSclWeight = 0;
 
 	}
 
@@ -15961,7 +15964,7 @@ THREE.SkinnedMesh = function ( geometry, material, useVertexTexture ) {
 			bone.name = gbone.name;
 			bone.position.set( p[0], p[1], p[2] );
 			bone.quaternion.set( q[0], q[1], q[2], q[3] );
-
+		
 			if ( s !== undefined ) {
 
 				bone.scale.set( s[0], s[1], s[2] );
@@ -15972,12 +15975,6 @@ THREE.SkinnedMesh = function ( geometry, material, useVertexTexture ) {
 
 			}
 
-			bone.originalPosition = new THREE.Vector3();
-			bone.originalQuaternion = new THREE.Quaternion();
-			bone.originalScale = new THREE.Vector3();
-			bone.originalPosition.copy(bone.position);
-			bone.originalQuaternion.copy(bone.quaternion);
-			bone.originalScale.copy(bone.scale);
 		}
 
 		for ( b = 0; b < this.bones.length; b ++ ) {
@@ -16818,19 +16815,7 @@ THREE.CanvasRenderer = function ( parameters ) {
 
 	if ( _context.setLineDash === undefined ) {
 
-		if ( _context.mozDash !== undefined ) {
-
-			_context.setLineDash = function ( values ) {
-
-				_context.mozDash = values[ 0 ] !== null ? values : null;
-
-			}
-
-		} else {
-
-			_context.setLineDash = function () {}
-
-		}
+		_context.setLineDash = function () {}
 
 	}
 
@@ -16900,7 +16885,13 @@ THREE.CanvasRenderer = function ( parameters ) {
 
 	this.setViewport = function ( x, y, width, height ) {
 
-		_context.setTransform( width / _canvasWidth, 0, 0, - height / _canvasHeight, x, _canvasHeight - y );
+		var viewportX = x * this.devicePixelRatio;
+		var viewportY = y * this.devicePixelRatio;
+
+		var viewportWidth = width * this.devicePixelRatio;
+		var viewportHeight = height * this.devicePixelRatio;
+
+		_context.setTransform( viewportWidth / _canvasWidth, 0, 0, - viewportHeight / _canvasHeight, viewportX, _canvasHeight - viewportY );
 		_context.translate( _canvasWidthHalf, _canvasHeightHalf );
 
 	};
@@ -17011,7 +17002,7 @@ THREE.CanvasRenderer = function ( parameters ) {
 
 			var material = element.material;
 
-			if ( material === undefined || material.visible === false ) continue;
+			if ( material === undefined || material.opacity === 0 ) continue;
 
 			_elemBox.makeEmpty();
 
@@ -25870,16 +25861,29 @@ THREE.WebGLRenderer = function ( parameters ) {
 
 				_gl.uniform4fv( location, uniform._array );
 
-			} else if ( type === "m4") { // single THREE.Matrix4
+			} else if ( type === "m3") { // single THREE.Matrix3
+
+				_gl.uniformMatrix3fv( location, false, value.elements );
+
+			} else if ( type === "m3v" ) { // array of THREE.Matrix3
 
 				if ( uniform._array === undefined ) {
 
-					uniform._array = new Float32Array( 16 );
+					uniform._array = new Float32Array( 9 * value.length );
 
 				}
 
-				value.flattenToArray( uniform._array );
-				_gl.uniformMatrix4fv( location, false, uniform._array );
+				for ( i = 0, il = value.length; i < il; i ++ ) {
+
+					value[ i ].flattenToArrayOffset( uniform._array, i * 9 );
+
+				}
+
+				_gl.uniformMatrix3fv( location, false, uniform._array );
+
+			} else if ( type === "m4") { // single THREE.Matrix4
+
+				_gl.uniformMatrix4fv( location, false, value.elements );
 
 			} else if ( type === "m4v" ) { // array of THREE.Matrix4
 
@@ -30460,9 +30464,78 @@ THREE.Path.prototype.getPoints = function( divisions, closedPath ) {
 
 };
 
+//
 // Breaks path into shapes
+//
+//	Assumptions (if parameter isCCW==true the opposite holds):
+//	- solid shapes are defined clockwise (CW)
+//	- holes are defined counterclockwise (CCW)
+//
+//	If parameter noHoles==true:
+//  - all subPaths are regarded as solid shapes
+//  - definition order CW/CCW has no relevance
+//
 
-THREE.Path.prototype.toShapes = function( isCCW ) {
+THREE.Path.prototype.toShapes = function( isCCW, noHoles ) {
+
+	function extractSubpaths( inActions ) {
+
+		var i, il, item, action, args;
+
+		var subPaths = [], lastPath = new THREE.Path();
+
+		for ( i = 0, il = inActions.length; i < il; i ++ ) {
+
+			item = inActions[ i ];
+
+			args = item.args;
+			action = item.action;
+
+			if ( action == THREE.PathActions.MOVE_TO ) {
+
+				if ( lastPath.actions.length != 0 ) {
+
+					subPaths.push( lastPath );
+					lastPath = new THREE.Path();
+
+				}
+
+			}
+
+			lastPath[ action ].apply( lastPath, args );
+
+		}
+
+		if ( lastPath.actions.length != 0 ) {
+
+			subPaths.push( lastPath );
+
+		}
+
+		// console.log(subPaths);
+
+		return	subPaths;
+	}
+
+	function toShapesNoHoles( inSubpaths ) {
+
+		var shapes = [];
+
+		for ( var i = 0, il = inSubpaths.length; i < il; i ++ ) {
+
+			var tmpPath = inSubpaths[ i ];
+
+			var tmpShape = new THREE.Shape();
+			tmpShape.actions = tmpPath.actions;
+			tmpShape.curves = tmpPath.curves;
+
+			shapes.push( tmpShape );
+		}
+
+		//console.log("shape", shapes);
+
+		return shapes;
+	};
 
 	function isPointInsidePolygon( inPt, inPolygon ) {
 		var EPSILON = 0.0000000001;
@@ -30509,41 +30582,12 @@ THREE.Path.prototype.toShapes = function( isCCW ) {
 		return	inside;
 	}
 
-	var i, il, item, action, args;
 
-	var subPaths = [], lastPath = new THREE.Path();
-
-	for ( i = 0, il = this.actions.length; i < il; i ++ ) {
-
-		item = this.actions[ i ];
-
-		args = item.args;
-		action = item.action;
-
-		if ( action == THREE.PathActions.MOVE_TO ) {
-
-			if ( lastPath.actions.length != 0 ) {
-
-				subPaths.push( lastPath );
-				lastPath = new THREE.Path();
-
-			}
-
-		}
-
-		lastPath[ action ].apply( lastPath, args );
-
-	}
-
-	if ( lastPath.actions.length != 0 ) {
-
-		subPaths.push( lastPath );
-
-	}
-
-	// console.log(subPaths);
-
+	var subPaths = extractSubpaths( this.actions );
 	if ( subPaths.length == 0 ) return [];
+
+	if ( noHoles === true )	return	toShapesNoHoles( subPaths );
+
 
 	var solid, tmpPath, tmpShape, shapes = [];
 
@@ -30571,6 +30615,8 @@ THREE.Path.prototype.toShapes = function( isCCW ) {
 
 	newShapes[mainIdx] = undefined;
 	newShapeHoles[mainIdx] = [];
+
+	var i, il;
 
 	for ( i = 0, il = subPaths.length; i < il; i ++ ) {
 
@@ -30601,6 +30647,10 @@ THREE.Path.prototype.toShapes = function( isCCW ) {
 		}
 
 	}
+
+	// only Holes? -> probably all Shapes with wrong orientation
+	if ( !newShapes[0] )	return	toShapesNoHoles( subPaths );
+
 
 	if ( newShapes.length > 1 ) {
 		var ambigious = false;
@@ -31031,6 +31081,7 @@ THREE.Shape.Utils = {
 
 			}
 
+			var minShapeIndex = 0;
 			var counter = indepHoles.length * 2;
 			while ( indepHoles.length > 0 ) {
 				counter --;
@@ -31041,7 +31092,7 @@ THREE.Shape.Utils = {
 
 				// search for shape-vertex and hole-vertex,
 				// which can be connected without intersections
-				for ( shapeIndex = 0; shapeIndex < shape.length; shapeIndex++ ) {
+				for ( shapeIndex = minShapeIndex; shapeIndex < shape.length; shapeIndex++ ) {
 
 					shapePt = shape[ shapeIndex ];
 					holeIndex	= -1;
@@ -31070,6 +31121,8 @@ THREE.Shape.Utils = {
 							tmpHole2 = hole.slice( 0, holeIndex+1 );
 
 							shape = tmpShape1.concat( tmpHole1 ).concat( tmpHole2 ).concat( tmpShape2 );
+
+							minShapeIndex = shapeIndex;
 
 							// Debug only, to show the selected cuts
 							// glob_CutLines.push( [ shapePt, holePt ] );
@@ -31887,41 +31940,26 @@ THREE.Animation = function ( root, name ) {
 	this.root = root;
 	this.data = THREE.AnimationHandler.get( name );
 	this.hierarchy = THREE.AnimationHandler.parse( root );
-	
+
 	this.currentTime = 0;
 	this.timeScale = 1;
 
 	this.isPlaying = false;
 	this.isPaused = true;
 	this.loop = true;
-	
-	this.weight = 1;
-	this.isFadingOut = false;
-	this.fadeTime = 0;
-	this.fadeTimeElapsed = 0;
 
-	this.animationCaches = {};
 	this.interpolationType = THREE.AnimationHandler.LINEAR;
 
 };
 
+THREE.Animation.prototype.play = function ( startTime ) {
 
-THREE.Animation.prototype.play = function ( startTime, weight, fadeInTime ) {
+	this.currentTime = startTime !== undefined ? startTime : 0;
 
 	if ( this.isPlaying === false ) {
 
 		this.isPlaying = true;
-		this.isFadingOut = false;
-		this.weight = weight !== undefined ? weight: 1;
-		this.fadeTime = fadeInTime !== undefined ? fadeInTime: 0;
-		this.fadeTimeElapsed = 0;
 
-		// Set current time at end of the animation if timeScale is negative (backward).
-
-		this.currentTime = startTime !== undefined ? startTime : 0;
-		if ( startTime === 0 )
-			this.currentTime = this.timeScale >= 0 ? 0 : this.data.length;
-		
 		this.reset();
 		this.update( 0 );
 
@@ -31951,71 +31989,43 @@ THREE.Animation.prototype.pause = function() {
 };
 
 
-THREE.Animation.prototype.stop = function( fadeOutTime ) {
+THREE.Animation.prototype.stop = function() {
 
-	this.fadeTime = fadeOutTime !== undefined ? fadeOutTime: 0;
-
-	if ( fadeOutTime === 0 ) {
-
-		this.currentTime = 0;
-		this.isPlaying = false;
-		this.isPaused  = false;
-		THREE.AnimationHandler.removeFromUpdate( this );
-
-	} else {
-
-		this.isFadingOut = true;
-		this.fadeTimeElapsed = 0;
-		this.fadeTime = fadeOutTime;
-
-	}
+	this.isPlaying = false;
+	this.isPaused  = false;
+	THREE.AnimationHandler.removeFromUpdate( this );
 
 };
 
 THREE.Animation.prototype.reset = function () {
-	
+
 	for ( var h = 0, hl = this.hierarchy.length; h < hl; h ++ ) {
 
 		var object = this.hierarchy[ h ];
 
 		object.matrixAutoUpdate = true;
 
-		if ( this.animationCaches[ h ] === undefined ) {
+		if ( object.animationCache === undefined ) {
 
-			var animationCache = this.animationCaches[ h ] = {};
-			animationCache.prevKey = { pos: 0, rot: 0, scl: 0 };
-			animationCache.nextKey = { pos: 0, rot: 0, scl: 0 };
-			animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
-
-		}
-
-		var prevKey = this.animationCaches[ h ].prevKey;
-		var nextKey = this.animationCaches[ h ].nextKey;
-
-		if (this.timeScale >= 0) {
-
-			prevKey.pos = this.data.hierarchy[ h ].keys[ 0 ];
-			prevKey.rot = this.data.hierarchy[ h ].keys[ 0 ];
-			prevKey.scl = this.data.hierarchy[ h ].keys[ 0 ];
-
-			nextKey.pos = this.getNextKeyWith( "pos", h, 1 );
-			nextKey.rot = this.getNextKeyWith( "rot", h, 1 );
-			nextKey.scl = this.getNextKeyWith( "scl", h, 1 );
-
-		} else {
-
-			prevKey.pos = this.data.hierarchy[ h ].keys[ this.data.hierarchy[ h ].keys.length - 1 ];
-			prevKey.rot = this.data.hierarchy[ h ].keys[ this.data.hierarchy[ h ].keys.length - 1 ];
-			prevKey.scl = this.data.hierarchy[ h ].keys[ this.data.hierarchy[ h ].keys.length - 1 ];
-
-			nextKey.pos = this.getPrevKeyWith( "pos", h, prevKey.index - 1 );
-			nextKey.rot = this.getPrevKeyWith( "rot", h, prevKey.index - 1 );
-			nextKey.scl = this.getPrevKeyWith( "scl", h, prevKey.index - 1 );
+			object.animationCache = {};
+			object.animationCache.prevKey = { pos: 0, rot: 0, scl: 0 };
+			object.animationCache.nextKey = { pos: 0, rot: 0, scl: 0 };
+			object.animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
 
 		}
+
+		var prevKey = object.animationCache.prevKey;
+		var nextKey = object.animationCache.nextKey;
+
+		prevKey.pos = this.data.hierarchy[ h ].keys[ 0 ];
+		prevKey.rot = this.data.hierarchy[ h ].keys[ 0 ];
+		prevKey.scl = this.data.hierarchy[ h ].keys[ 0 ];
+
+		nextKey.pos = this.getNextKeyWith( "pos", h, 1 );
+		nextKey.rot = this.getNextKeyWith( "rot", h, 1 );
+		nextKey.scl = this.getNextKeyWith( "scl", h, 1 );
 
 	}
-
 
 };
 
@@ -32068,84 +32078,26 @@ THREE.Animation.prototype.update = (function(){
 	};
 	
 	return function ( delta ) {
-	
 		if ( this.isPlaying === false ) return;
 	
 		this.currentTime += delta * this.timeScale;
 	
 		//
 	
-		var forward = this.timeScale >= 0;
 		var vector;
-		var quat;
-		var proportionalWeight;
 		var types = [ "pos", "rot", "scl" ];
 	
 		var duration = this.data.length;
-		
-		var fadedWeight = 1;
-		
-		if (this.fadeTime > 0) {
-
-			this.fadeTimeElapsed += delta * Math.abs(this.timeScale);
-			if (this.isFadingOut) {
-				
-				fadedWeight = Math.max( 1 - this.fadeTimeElapsed / this.fadeTime, 0 );
-				
-				if (fadedWeight === 0) {
-				
-					this.fadeTimeElapsed = 0;
-					this.fadeTime = 0;
-					this.stop(0);
-					
-				}
-
-			} else {
-
-				fadedWeight = Math.min( this.fadeTimeElapsed / this.fadeTime, 1 );
-
-				if (fadedWeight === 1) {
-				
-					this.fadeTimeElapsed = 0;
-					this.fadeTime = 0;
-					
-				}
-
-			}
-
-		}
-			
-		fadedWeight *= this.weight;
-		if ( fadedWeight === 0 )
+	
+		if ( this.loop === true && this.currentTime > duration ) {
+	
+			this.currentTime %= duration;
+			this.reset();
+	
+		} else if ( this.loop === false && this.currentTime > duration ) {
+	
+			this.stop();
 			return;
-		
-		if ( this.loop === true ) {
-
-			if ( forward && this.currentTime > duration ) {
-
-				this.currentTime %= duration;
-				this.reset();
-
-			} else if ( this.currentTime <= 0 ) {
-
-				this.currentTime = duration - (this.currentTime % duration);
-				this.reset();
-
-			}
-
-		} else if ( this.loop === false ) {
-			
-			if (forward && this.currentTime > duration) {
-			
-				this.stop(0.01);
-				return;
-				
-			} else if ( this.currentTime <= 0 ) {
-			
-				this.stop(0.01);
-				return;
-				
-			}
 	
 		}
 	
@@ -32154,7 +32106,7 @@ THREE.Animation.prototype.update = (function(){
 		for ( var h = 0, hl = this.hierarchy.length; h < hl; h ++ ) {
 	
 			var object = this.hierarchy[ h ];
-			var animationCache = this.animationCaches[ h ];
+			var animationCache = object.animationCache;
 	
 			// loop through pos/rot/scl
 	
@@ -32166,49 +32118,21 @@ THREE.Animation.prototype.update = (function(){
 				var prevKey = animationCache.prevKey[ type ];
 				var nextKey = animationCache.nextKey[ type ];
 	
-				if ( forward )
-				{
-
-					// Get next and previous keys for forward playback.
-
-					if ( nextKey.time <= this.currentTime ) {
-
-						prevKey = this.data.hierarchy[ h ].keys[ 0 ];
-						nextKey = this.getNextKeyWith( type, h, 1 );
-
-						while ( nextKey.time < this.currentTime && nextKey.index > prevKey.index ) {
-
-							prevKey = nextKey;
-							nextKey = this.getNextKeyWith( type, h, nextKey.index + 1 );
-
-						}
-
-						animationCache.prevKey[ type ] = prevKey;
-						animationCache.nextKey[ type ] = nextKey;
-
+				if ( nextKey.time <= this.currentTime ) {
+	
+					prevKey = this.data.hierarchy[ h ].keys[ 0 ];
+					nextKey = this.getNextKeyWith( type, h, 1 );
+	
+					while ( nextKey.time < this.currentTime && nextKey.index > prevKey.index ) {
+	
+						prevKey = nextKey;
+						nextKey = this.getNextKeyWith( type, h, nextKey.index + 1 );
+	
 					}
-
-				} else {
-
-					// Get next and previous keys for backward playback.
-
-					if ( this.currentTime <= nextKey.time ) {
-
-						prevKey = this.data.hierarchy[ h ].keys[ this.data.hierarchy[ h ].keys.length - 1 ];
-						nextKey = this.getPrevKeyWith( type, h, prevKey.index - 1 );
-
-						while ( nextKey.time > this.currentTime && nextKey.index < prevKey.index ) {
-
-							prevKey = nextKey;
-							nextKey = this.getPrevKeyWith( type, h, nextKey.index - 1 );
-
-						}
-
-						animationCache.prevKey[ type ] = prevKey;
-						animationCache.nextKey[ type ] = nextKey;
-
-					}
-
+	
+					animationCache.prevKey[ type ] = prevKey;
+					animationCache.nextKey[ type ] = nextKey;
+	
 				}
 	
 				object.matrixAutoUpdate = true;
@@ -32221,9 +32145,6 @@ THREE.Animation.prototype.update = (function(){
 	
 				if ( scale < 0 ) scale = 0;
 				if ( scale > 1 ) scale = 1;
-				
-				if ( object.enableAnimations === false )
-					continue;
 	
 				// interpolate
 	
@@ -32233,30 +32154,9 @@ THREE.Animation.prototype.update = (function(){
 	
 					if ( this.interpolationType === THREE.AnimationHandler.LINEAR ) {
 	
-						var newVector = new THREE.Vector3(
-							prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
-							prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
-							prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
-						);
-						
-						// If first animation to blend to a bone, reset position to bind pose
-						if (object instanceof THREE.Bone) {
-
-							if (object.accumulatedPosWeight === 0) {
-								vector.copy(object.originalPosition);
-								proportionalWeight = fadedWeight;
-							}
-							else
-								proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedPosWeight );
-
-							vector.lerp(newVector, proportionalWeight);
-							object.accumulatedPosWeight += fadedWeight;
-
-						} else {
-						
-							vector.copy(newVector);
-							
-						}
+						vector.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
+						vector.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale;
+						vector.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale;
 	
 					} else if ( this.interpolationType === THREE.AnimationHandler.CATMULLROM ||
 						this.interpolationType === THREE.AnimationHandler.CATMULLROM_FORWARD ) {
@@ -32270,27 +32170,9 @@ THREE.Animation.prototype.update = (function(){
 	
 						var currentPoint = interpolateCatmullRom( points, scale );
 	
-						// If first animation to blend to a bone, reset position to bind pose
-						if ( object instanceof THREE.Bone ) {
-
-							if (object.accumulatedPosWeight === 0) {
-								vector.copy(object.originalPosition);
-								proportionalWeight = fadedWeight;
-							}
-							else
-								proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedPosWeight );
-
-							object.accumulatedPosWeight += fadedWeight
-
-						} else {
-						
-							proportionalWeight = 1;
-							
-						}
-
-						vector.x = vector.x + ( currentPoint[ 0 ] - vector.x ) * proportionalWeight;
-						vector.y = vector.y + ( currentPoint[ 1 ] - vector.y ) * proportionalWeight;
-						vector.z = vector.z + ( currentPoint[ 2 ] - vector.z ) * proportionalWeight;
+						vector.x = currentPoint[ 0 ];
+						vector.y = currentPoint[ 1 ];
+						vector.z = currentPoint[ 2 ];
 	
 						if ( this.interpolationType === THREE.AnimationHandler.CATMULLROM_FORWARD ) {
 	
@@ -32310,58 +32192,15 @@ THREE.Animation.prototype.update = (function(){
 	
 				} else if ( type === "rot" ) {
 	
-					quat = object.quaternion;
-
-					var newRotation = new THREE.Quaternion();
-					THREE.Quaternion.slerp( prevXYZ, nextXYZ, newRotation, scale );
-
-					// If first animation to blend to a bone, reset rotation to bind pose
-
-					if (object instanceof THREE.Bone) {
-
-						if (object.accumulatedRotWeight === 0) {
-							quat.copy(object.originalQuaternion);
-							proportionalWeight = fadedWeight;
-						}
-						else
-							proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedRotWeight );
-
-						quat.slerp(newRotation, proportionalWeight);
-						object.accumulatedRotWeight += fadedWeight;
-
-					}
-					else
-						quat.copy(newRotation);
+					THREE.Quaternion.slerp( prevXYZ, nextXYZ, object.quaternion, scale );
 	
 				} else if ( type === "scl" ) {
 	
 					vector = object.scale;
 	
-					var newScale = new THREE.Vector3(
-						prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
-						prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
-						prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
-					);
-
-					
-					// If first animation to blend to a bone, reset scale to bind pose
-					if ( object instanceof THREE.Bone ) {
-
-						if (object.accumulatedSclWeight === 0) {
-							vector.copy(object.originalScale);
-							proportionalWeight = fadedWeight;
-						}
-						else
-							proportionalWeight = fadedWeight / ( fadedWeight + object.accumulatedSclWeight );
-
-						vector.lerp(newScale, proportionalWeight);
-						object.accumulatedSclWeight += fadedWeight;
-
-						} else {
-						
-							vector.copy(newScale);
-							
-						}
+					vector.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
+					vector.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale;
+					vector.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale;
 	
 				}
 	
