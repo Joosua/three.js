@@ -114,6 +114,8 @@ THREE.Animation.prototype.reset = function () {
 		var prevKey = this.animationCaches[ h ].prevKey;
 		var nextKey = this.animationCaches[ h ].nextKey;
 
+		// Is animation playback forward or backward.
+		
 		if (this.timeScale >= 0) {
 
 			prevKey.pos = this.data.hierarchy[ h ].keys[ 0 ];
@@ -137,7 +139,6 @@ THREE.Animation.prototype.reset = function () {
 		}
 
 	}
-
 
 };
 
@@ -200,6 +201,11 @@ THREE.Animation.prototype.update = (function(){
 		var forward = this.timeScale >= 0;
 		var vector;
 		var quat;
+		
+		var newVector = new THREE.Vector3();
+		var newRotation = new THREE.Quaternion();
+		var newScale = new THREE.Vector3();
+		
 		var proportionalWeight;
 		var types = [ "pos", "rot", "scl" ];
 	
@@ -344,6 +350,8 @@ THREE.Animation.prototype.update = (function(){
 				if ( scale < 0 ) scale = 0;
 				if ( scale > 1 ) scale = 1;
 				
+				// If bone has disabled animations don't interpolate
+				
 				if ( object.enableAnimations === false )
 					continue;
 	
@@ -355,11 +363,9 @@ THREE.Animation.prototype.update = (function(){
 	
 					if ( this.interpolationType === THREE.AnimationHandler.LINEAR ) {
 	
-						var newVector = new THREE.Vector3(
-							prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
-							prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
-							prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
-						);
+						newVector.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
+						newVector.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
+						newVector.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
 						
 						// If first animation to blend to a bone, reset position to bind pose
 						if (object instanceof THREE.Bone) {
@@ -434,7 +440,11 @@ THREE.Animation.prototype.update = (function(){
 	
 					quat = object.quaternion;
 
-					var newRotation = new THREE.Quaternion();
+					newRotation.x = 0;
+					newRotation.y = 0;
+					newRotation.z = 0;
+					newRotation.w = 1;
+					
 					THREE.Quaternion.slerp( prevXYZ, nextXYZ, newRotation, scale );
 
 					// If first animation to blend to a bone, reset rotation to bind pose
@@ -459,12 +469,9 @@ THREE.Animation.prototype.update = (function(){
 	
 					vector = object.scale;
 	
-					var newScale = new THREE.Vector3(
-						prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale,
-						prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale,
-						prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale
-					);
-
+					newScale.x = prevXYZ[ 0 ] + ( nextXYZ[ 0 ] - prevXYZ[ 0 ] ) * scale;
+					newScale.y = prevXYZ[ 1 ] + ( nextXYZ[ 1 ] - prevXYZ[ 1 ] ) * scale;
+					newScale.z = prevXYZ[ 2 ] + ( nextXYZ[ 2 ] - prevXYZ[ 2 ] ) * scale;
 					
 					// If first animation to blend to a bone, reset scale to bind pose
 					if ( object instanceof THREE.Bone ) {
